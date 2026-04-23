@@ -263,8 +263,8 @@ require([
 
 // ── CONFIG ────────────────────────────────────────────────────────────────
 const CONFIG = {
-  portal:          "https://ttuoperations.maps.arcgis.com",
-  appId:           "OQL3UWWFSROjX5aJ",
+  portal:          "https://www.arcgis.com",
+  appId:           "X3IFUf6VCkpvjAiu",
   indoorsItemId:   "be3195ff57944e6a891d18c2368f43f3",
   relocItemId:     "1e604fdd098e4d1782b203d5ea7ecfc3",
   layerFacilities: 2,
@@ -274,10 +274,12 @@ const CONFIG = {
   layerMovements:  22,
 };
 
-// popup:false = inline page redirect, no redirect URI registration required
+// popup:true opens AGOL login in a popup window
+// redirect URI must be registered in AGOL app as:
+// https://adrianzermeno.github.io/ttu-relocation-planner/
 esriId.registerOAuthInfos([new OAuthInfo({
   appId:     CONFIG.appId,
-  popup:     false,
+  popup:     true,
   portalUrl: CONFIG.portal
 })]);
 
