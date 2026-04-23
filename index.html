@@ -766,6 +766,7 @@ function showApp(user) {
 // ─── Request helpers — plain fetch with token, bypasses SDK URL rewriting ─
 let _token = null;
 let _servicesToken = null;
+window._getTokens = () => ({ portal: _token, services: _servicesToken });
 
 async function req(url, params) {
   try {
