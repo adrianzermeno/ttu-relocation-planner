@@ -4,8 +4,16 @@
 <body>
 <script src="https://js.arcgis.com/4.29/"></script>
 <script>
-require(["esri/identity/IdentityManager"], function(esriId) {
-  esriId.setOAuthResponseHash(location.hash || location.search);
+require([
+  "esri/identity/OAuthInfo",
+  "esri/identity/IdentityManager"
+], function(OAuthInfo, esriId) {
+  esriId.registerOAuthInfos([new OAuthInfo({
+    appId:     "X3IFUf6VCkpvjAiu",
+    popup:     true,
+    portalUrl: "https://www.arcgis.com"
+  })]);
+  esriId.setOAuthResponseHash(location.hash || ("?" + location.search.slice(1)));
 });
 </script>
 </body>
