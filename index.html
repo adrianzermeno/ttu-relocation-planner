@@ -765,15 +765,23 @@ function showApp(user) {
   $("signOutBtn").style.display = "inline-block";
 }
 
+// ─── Request helpers — plain fetch with token, bypasses SDK URL rewriting ─
+let _token = null; // store token for manual attachment
+
 async function req(url, params) {
-  const r = await esriRequest(url, { query: { ...params, f: "json" }, responseType: "json" });
-  if (r.data?.error) throw new Error(r.data.error.message);
-  return r.data;
+  const p = new URLSearchParams({ ...params, f: "json" });
+  if (_token) p.append("token", _token);
+  const res  = await fetch(`${url}?${p.toString()}`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data;
 }
 async function post(url, fd) {
-  const r = await esriRequest(url, { method: "post", body: fd, responseType: "json" });
-  if (r.data?.error) throw new Error(r.data.error.message);
-  return r.data;
+  if (_token) fd.append("token", _token);
+  const res  = await fetch(url, { method: "POST", body: fd });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data;
 }
 
 // ─── AUTH — direct generateToken (non-SSO AGOL org) ──────────────────────
@@ -797,6 +805,8 @@ async function doLogin() {
     const data = await res.json();
     if (data.error)  throw new Error(data.error.message || "Login failed");
     if (!data.token) throw new Error("Invalid username or password");
+
+    _token = data.token; // store for all subsequent requests
 
     // Register token with SDK so all esriRequests auto-attach it
     esriId.registerToken({
@@ -834,9 +844,13 @@ async function loadApp() {
   setStatus('<span class="spinner spinner-dark"></span> Connecting to ArcGIS Online…', "inf");
   try {
     const iItem = await req(`${CFG.portal}/sharing/rest/content/items/${CFG.indoors}`, {});
+    if (!iItem.url) throw new Error("Could not retrieve Indoors service URL");
     S.indoorsUrl = iItem.url;
+
     const rItem = await req(`${CFG.portal}/sharing/rest/content/items/${CFG.reloc}`, {});
+    if (!rItem.url) throw new Error("Could not retrieve Relocation service URL");
     S.relocUrl = rItem.url;
+
     await loadFacilities();
   } catch(e) {
     setStatus(`❌ Could not load services: ${e.message}`, "err");
