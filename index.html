@@ -4,251 +4,693 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TTU Relocation Planner</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
 <script src="https://js.arcgis.com/4.29/"></script>
 <style>
-  :root {
-    --red: #CC0000; --red-dark: #990000; --red-light: #fff0f0; --red-mid: #ffd6d6;
-    --ink: #1a1a1a; --ink2: #444; --ink3: #888; --ink4: #bbb;
-    --surface: #f8f7f5; --white: #ffffff; --border: #e2e0dc; --border2: #ccc9c2;
-    --green: #1a6e1a; --green-light: #edf7ed; --amber: #b45309; --amber-light: #fffbeb;
-    --blue: #1e40af; --blue-light: #eff6ff;
-    --radius: 8px; --radius-lg: 12px;
-    --shadow: 0 2px 8px rgba(0,0,0,0.08); --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--ink); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+:root {
+  --red: #CC0000;
+  --red-d: #990000;
+  --red-bg: #fff5f5;
+  --ink: #111;
+  --ink2: #3a3a3a;
+  --ink3: #777;
+  --ink4: #bbb;
+  --bg: #f4f3f0;
+  --white: #fff;
+  --border: #ddd;
+  --border2: #c8c5be;
+  --green: #166534;
+  --green-bg: #f0fdf4;
+  --amber: #92400e;
+  --amber-bg: #fffbeb;
+  --blue: #1d4ed8;
+  --blue-bg: #eff6ff;
+  --r: 6px;
+  --r2: 10px;
+  --shadow: 0 1px 4px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
 
-  header { background: var(--red); color: white; padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(204,0,0,0.3); }
-  .brand { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
-  .brand .dot { width: 8px; height: 8px; background: rgba(255,255,255,0.6); border-radius: 50%; }
+/* ── HEADER ── */
+.header {
+  background: var(--red);
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 2px 8px rgba(180,0,0,0.25);
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+.header-left .sep { opacity: 0.4; font-weight: 300; }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.user-pill {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: rgba(255,255,255,0.8);
+  background: rgba(255,255,255,0.12);
+  padding: 3px 10px;
+  border-radius: 20px;
+  display: none;
+}
+.btn-signout {
+  font-size: 11px;
+  color: rgba(255,255,255,0.75);
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'IBM Plex Sans', sans-serif;
+  display: none;
+  transition: background 0.15s;
+}
+.btn-signout:hover { background: rgba(255,255,255,0.2); }
 
-  .app { max-width: 1280px; margin: 0 auto; padding: 28px 32px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto auto; gap: 20px; }
-  .card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow); }
-  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
-  .card-header .icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-  .card-header h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink2); }
-  .card-header .badge { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 11px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 2px 10px; color: var(--ink3); }
-  .card-body { padding: 16px 20px; }
-  .project-card { grid-column: 1 / -1; }
-  .project-fields { display: grid; grid-template-columns: 180px 1fr 160px 160px 180px; gap: 12px; align-items: end; }
-  .field { display: flex; flex-direction: column; gap: 4px; }
-  .field label { font-size: 11px; font-weight: 600; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.06em; }
-  .field input, .field select { font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 7px 10px; border: 1px solid var(--border2); border-radius: var(--radius); background: var(--white); color: var(--ink); outline: none; transition: border-color 0.15s; width: 100%; }
-  .field input:focus, .field select:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(204,0,0,0.08); }
+/* ── LOGIN ── */
+#loginScreen {
+  min-height: calc(100vh - 52px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+.login-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 48px 52px;
+  width: 420px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.login-logo {
+  width: 56px;
+  height: 56px;
+  background: var(--red);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 26px;
+}
+.login-card h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
+}
+.login-card .sub {
+  color: var(--ink3);
+  font-size: 13px;
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+.login-note {
+  margin-top: 16px;
+  font-size: 11px;
+  color: var(--ink4);
+  line-height: 1.7;
+}
+.login-err {
+  font-size: 12px;
+  color: var(--red);
+  margin-bottom: 12px;
+  min-height: 18px;
+  line-height: 1.5;
+}
 
-  .selector-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-  .selector-row select { font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 8px 10px; border: 1px solid var(--border2); border-radius: var(--radius); background: var(--white); color: var(--ink); outline: none; cursor: pointer; transition: border-color 0.15s; }
-  .selector-row select:focus { border-color: var(--red); }
+/* ── MAIN APP ── */
+#mainApp {
+  display: none;
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
 
-  .room-search { width: 100%; font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 7px 10px; border: 1px solid var(--border2); border-radius: var(--radius); margin-bottom: 8px; outline: none; }
-  .room-search:focus { border-color: var(--red); }
-  .room-list { border: 1px solid var(--border); border-radius: var(--radius); max-height: 260px; overflow-y: auto; background: var(--surface); }
-  .room-list::-webkit-scrollbar { width: 4px; }
-  .room-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-  .room-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; user-select: none; }
-  .room-item:last-child { border-bottom: none; }
-  .room-item:hover { background: var(--red-light); }
-  .room-item.selected { background: var(--red-light); }
-  .room-item input[type="checkbox"] { accent-color: var(--red); width: 14px; height: 14px; cursor: pointer; flex-shrink: 0; }
-  .room-item .room-name { font-weight: 500; font-size: 13px; flex: 1; }
-  .room-item .room-id { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--ink3); }
-  .room-item .room-type { font-size: 10px; color: var(--ink4); background: var(--border); padding: 1px 6px; border-radius: 10px; }
-  .empty-state { padding: 32px 16px; text-align: center; color: var(--ink3); font-size: 13px; }
-  .empty-state .icon { font-size: 24px; margin-bottom: 8px; }
-  .loading-state { padding: 24px 16px; text-align: center; color: var(--ink3); font-size: 13px; }
-  .select-all-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 12px; color: var(--ink3); }
-  .select-all-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
-  .select-all-row input { accent-color: var(--red); cursor: pointer; }
+/* ── STEP INDICATORS ── */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 24px;
+}
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink4);
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s;
+  user-select: none;
+}
+.step-item.active { color: var(--red); }
+.step-item.done { color: var(--green); }
+.step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--ink3);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.step-item.active .step-num { background: var(--red); color: white; }
+.step-item.done .step-num { background: var(--green); color: white; }
+.step-arrow { color: var(--border2); font-size: 12px; flex-shrink: 0; }
 
-  .selected-panel { grid-column: 1 / -1; }
-  .movements-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .movements-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 2px solid var(--border); background: var(--surface); }
-  .movements-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-  .movements-table tr:last-child td { border-bottom: none; }
-  .movements-table tr:hover td { background: var(--surface); }
-  .mono { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--ink3); }
-  .arrow-col { text-align: center; color: var(--ink4); font-size: 16px; }
-  .btn-remove { background: none; border: none; color: var(--ink4); cursor: pointer; font-size: 16px; padding: 2px 4px; border-radius: 4px; transition: color 0.15s, background 0.15s; line-height: 1; }
-  .btn-remove:hover { color: var(--red); background: var(--red-light); }
-  .occupant-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
-  .occupant-row input { font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 4px 8px; border: 1px solid var(--border2); border-radius: var(--radius); flex: 1; outline: none; }
-  .occupant-row input:focus { border-color: var(--red); }
-  .btn-add-occ { background: none; border: 1px dashed var(--border2); color: var(--ink3); font-size: 11px; padding: 3px 8px; border-radius: var(--radius); cursor: pointer; white-space: nowrap; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
-  .btn-add-occ:hover { border-color: var(--red); color: var(--red); }
+/* ── PANELS ── */
+.panel { display: none; }
+.panel.active { display: block; }
 
-  .actions-bar { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 20px; box-shadow: var(--shadow); }
-  .actions-bar .summary { font-size: 13px; color: var(--ink2); }
-  .btn { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; padding: 9px 20px; border-radius: var(--radius); cursor: pointer; border: none; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
-  .btn-primary { background: var(--red); color: white; }
-  .btn-primary:hover { background: var(--red-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(204,0,0,0.25); }
-  .btn-primary:disabled { background: var(--ink4); cursor: not-allowed; transform: none; box-shadow: none; }
-  .btn-secondary { background: var(--white); color: var(--ink2); border: 1px solid var(--border2); }
-  .btn-secondary:hover { background: var(--surface); }
-  .btn-group { display: flex; gap: 8px; }
+/* ── CARDS ── */
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.card-head h2 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink2);
+}
+.card-head .chip {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--ink3);
+}
+.card-body { padding: 18px 20px; }
 
-  .status-bar { grid-column: 1 / -1; padding: 12px 16px; border-radius: var(--radius); font-size: 13px; display: none; align-items: center; gap: 10px; }
-  .status-bar.success { background: var(--green-light); color: var(--green); border: 1px solid #86efac; display: flex; }
-  .status-bar.error   { background: var(--red-light); color: var(--red-dark); border: 1px solid var(--red-mid); display: flex; }
-  .status-bar.info    { background: var(--blue-light); color: var(--blue); border: 1px solid #bfdbfe; display: flex; }
+/* ── FORM FIELDS ── */
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.field input, .field select, .field textarea {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  background: var(--white);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(204,0,0,0.07);
+}
+.field select { cursor: pointer; }
+.field select:disabled { background: var(--bg); color: var(--ink4); cursor: not-allowed; }
 
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+.grid-5 { display: grid; grid-template-columns: 160px 1fr 150px 150px 180px; gap: 12px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--white); border-radius: var(--radius-lg); padding: 28px 32px; max-width: 480px; width: 90%; box-shadow: var(--shadow-lg); }
-  .modal h3 { font-size: 16px; margin-bottom: 8px; }
-  .modal p { font-size: 13px; color: var(--ink2); margin-bottom: 20px; line-height: 1.6; }
-  .modal .btn-group { justify-content: flex-end; }
+/* ── SELECTOR PANEL (Building/Floor/Room) ── */
+.selector-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.side-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  overflow: hidden;
+}
+.side-panel-head {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.side-panel-head h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.side-panel-head .count { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600; }
+.count.from { background: #fff3e0; color: #92400e; }
+.count.to   { background: var(--green-bg); color: var(--green); }
+.side-panel-body { padding: 12px 14px; background: var(--white); }
 
-  .count-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; font-size: 11px; font-weight: 600; font-family: 'DM Mono', monospace; }
-  .count-chip.from { background: #fff3e0; color: #b45309; }
-  .count-chip.to   { background: var(--green-light); color: var(--green); }
-  .count-chip.neutral { background: var(--surface); color: var(--ink3); border: 1px solid var(--border); }
+.cascade { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.cascade select {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  background: var(--white);
+  color: var(--ink);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.cascade select:focus { border-color: var(--red); }
+.cascade select:disabled { background: var(--bg); color: var(--ink4); cursor: not-allowed; }
 
-  /* Login panel */
-  #loginPanel { display: flex; min-height: calc(100vh - 56px); align-items: center; justify-content: center; background: var(--surface); }
-  .login-box { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 40px 44px; width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); }
-  .login-box .login-icon { width: 52px; height: 52px; background: var(--red); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 16px; }
-  .login-box h2 { text-align: center; font-size: 18px; font-weight: 600; margin-bottom: 4px; }
-  .login-box .login-sub { text-align: center; font-size: 13px; color: var(--ink3); margin-bottom: 28px; }
-  .login-note { font-size: 11px; color: var(--ink3); text-align: center; margin-top: 12px; line-height: 1.6; }
+.room-search {
+  width: 100%;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  margin-bottom: 8px;
+  outline: none;
+  display: none;
+}
+.room-search:focus { border-color: var(--red); }
 
-  @media (max-width: 900px) {
-    .app { grid-template-columns: 1fr; padding: 16px; }
-    .project-fields { grid-template-columns: 1fr 1fr; }
-    .project-card, .selected-panel, .actions-bar, .status-bar { grid-column: 1; }
-  }
+.room-list {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.room-list::-webkit-scrollbar { width: 4px; }
+.room-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.room-all-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #f0efec;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--ink3);
+  user-select: none;
+}
+.room-all-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 500; }
+.room-all-row input { accent-color: var(--red); cursor: pointer; }
+
+.room-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+  user-select: none;
+}
+.room-item:last-child { border-bottom: none; }
+.room-item:hover { background: var(--red-bg); }
+.room-item.sel { background: var(--red-bg); }
+.room-item input[type="checkbox"] { accent-color: var(--red); flex-shrink: 0; }
+.room-item .rname { font-weight: 500; font-size: 12px; flex: 1; }
+.room-item .rtype { font-size: 10px; color: var(--ink4); background: var(--border); padding: 1px 5px; border-radius: 3px; }
+.room-item .rid { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink4); }
+
+.empty { padding: 28px 16px; text-align: center; color: var(--ink3); font-size: 12px; }
+.loading { padding: 20px 16px; text-align: center; color: var(--ink3); font-size: 12px; }
+
+/* ── MOVEMENTS TABLE ── */
+.movements-wrap { overflow-x: auto; }
+.movements-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.movements-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink3);
+  background: var(--bg);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.movements-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.movements-table tr:last-child td { border-bottom: none; }
+.movements-table tr:hover td { background: var(--bg); }
+.cell-main { font-weight: 500; font-size: 12px; }
+.cell-sub { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink3); margin-top: 1px; }
+.arrow-cell { text-align: center; color: var(--ink4); padding: 9px 6px; }
+.unmatched { color: var(--ink4); font-style: italic; font-size: 11px; }
+
+/* occupants inline */
+.occ-row { display: flex; gap: 4px; align-items: center; margin-top: 3px; }
+.occ-row input {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 11px;
+  padding: 3px 6px;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  outline: none;
+  min-width: 0;
+}
+.occ-row input:focus { border-color: var(--red); }
+.occ-row input.w-name { width: 110px; }
+.occ-row input.w-email { width: 130px; }
+.occ-row input.w-dept { width: 80px; }
+.btn-xi { background: none; border: none; color: var(--ink4); cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; transition: color 0.1s; }
+.btn-xi:hover { color: var(--red); }
+.btn-add-occ { background: none; border: 1px dashed var(--border2); color: var(--ink3); font-size: 10px; padding: 2px 7px; border-radius: 4px; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; margin-top: 4px; transition: border-color 0.1s, color 0.1s; }
+.btn-add-occ:hover { border-color: var(--red); color: var(--red); }
+
+/* ── BUTTONS ── */
+.btn {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 20px;
+  border-radius: var(--r);
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--red); color: white; }
+.btn-primary:hover { background: var(--red-d); box-shadow: 0 3px 10px rgba(204,0,0,0.25); }
+.btn-primary:disabled { background: var(--ink4); cursor: not-allowed; box-shadow: none; }
+.btn-ghost { background: var(--white); color: var(--ink2); border: 1px solid var(--border2); }
+.btn-ghost:hover { background: var(--bg); border-color: var(--ink3); }
+.btn-red-ghost { background: var(--white); color: var(--red); border: 1px solid var(--red); }
+.btn-red-ghost:hover { background: var(--red-bg); }
+.btn-lg { padding: 11px 28px; font-size: 14px; }
+
+/* ── ACTION BAR ── */
+.action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 14px 20px;
+  box-shadow: var(--shadow);
+  margin-top: 20px;
+}
+.action-bar .summary { font-size: 13px; color: var(--ink2); }
+.btn-row { display: flex; gap: 8px; }
+
+/* ── STATUS ── */
+.status {
+  padding: 10px 14px;
+  border-radius: var(--r);
+  font-size: 12px;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.status.show { display: flex; }
+.status.ok  { background: var(--green-bg); color: var(--green); border: 1px solid #bbf7d0; }
+.status.err { background: var(--red-bg); color: var(--red-d); border: 1px solid #fca5a5; }
+.status.inf { background: var(--blue-bg); color: var(--blue); border: 1px solid #bfdbfe; }
+
+/* ── SPINNER ── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; flex-shrink: 0; }
+.spinner-dark { border-color: rgba(0,0,0,0.1); border-top-color: var(--ink3); }
+
+/* ── MODAL ── */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 100; align-items: center; justify-content: center; }
+.modal-bg.open { display: flex; }
+.modal { background: var(--white); border-radius: var(--r2); padding: 28px 32px; max-width: 460px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+.modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+.modal p { font-size: 13px; color: var(--ink2); margin-bottom: 20px; line-height: 1.6; }
+
+/* ── SECTION SPACING ── */
+.section { margin-bottom: 20px; }
+.gap-16 { display: flex; flex-direction: column; gap: 16px; }
+
+@media (max-width: 900px) {
+  .selector-grid { grid-template-columns: 1fr; }
+  .grid-5 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+  #mainApp { padding: 14px; }
+}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="brand"><div class="dot"></div>TTU Facilities — Relocation Planner</div>
-  <div style="display:flex;align-items:center;gap:16px">
-    <span style="font-size:12px;opacity:0.75;font-family:'DM Mono',monospace" id="headerUser"></span>
-    <button id="signOutBtn" style="display:none;font-size:11px;padding:4px 12px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif" onclick="doSignOut()">Sign out</button>
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <span>TTU Facilities</span>
+    <span class="sep">/</span>
+    <span>Relocation Planner</span>
   </div>
-</header>
+  <div class="header-right">
+    <span class="user-pill" id="userPill"></span>
+    <button class="btn-signout" id="signOutBtn" onclick="doSignOut()">Sign out</button>
+  </div>
+</div>
 
-<!-- LOGIN PANEL -->
-<div id="loginPanel">
-  <div class="login-box">
-    <div class="login-icon">🏛</div>
-    <h2>Relocation Planner</h2>
-    <p class="login-sub">Sign in with your ArcGIS Online account</p>
-    <p id="loginError" style="font-size:12px;color:var(--ink2);text-align:center;margin-bottom:14px;min-height:18px;line-height:1.6"></p>
-    <button class="btn btn-primary" id="loginBtn" onclick="doLogin()" style="width:100%;justify-content:center;padding:12px;font-size:14px">
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">🏛</div>
+    <h1>Relocation Planner</h1>
+    <p class="sub">Sign in with your ArcGIS Online account<br>to access TTU building and room data.</p>
+    <div class="login-err" id="loginErr"></div>
+    <button class="btn btn-primary btn-lg" id="loginBtn" onclick="doLogin()" style="width:100%;justify-content:center">
       Sign In with ArcGIS
     </button>
-    <p class="login-note">Make sure you are signed into <a href="https://www.arcgis.com" target="_blank" style="color:var(--blue)">arcgis.com</a> in this browser first.<br>TTU SSO credentials are handled by your browser session.</p>
+    <p class="login-note">
+      Powered by ArcGIS Online · TTU Operations<br>
+      Your session is handled securely by Esri
+    </p>
   </div>
 </div>
 
 <!-- MAIN APP -->
-<div class="app" id="app" style="display:none">
+<div id="mainApp">
 
-  <div class="status-bar" id="statusBar"></div>
+  <!-- STATUS BAR -->
+  <div class="status" id="statusBar"></div>
 
-  <!-- PROJECT INFO -->
-  <div class="card project-card">
-    <div class="card-header">
-      <div class="icon" style="background:#fff0f0">📋</div>
-      <h2>Project Information</h2>
+  <!-- STEP TABS -->
+  <div class="steps">
+    <div class="step-item active" id="tab1" onclick="goStep(1)">
+      <span class="step-num">1</span> Project Details
     </div>
-    <div class="card-body">
-      <div class="project-fields">
-        <div class="field"><label>Project Number *</label><input type="text" id="projNum" placeholder="RELOC-2026-001"></div>
-        <div class="field"><label>Project Name *</label><input type="text" id="projName" placeholder="Descriptive name for this move"></div>
-        <div class="field"><label>Status</label>
-          <select id="projStatus">
-            <option value="pending">Pending</option>
-            <option value="active" selected>Active</option>
-            <option value="in_progress">In Progress</option>
-            <option value="complete">Complete</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+    <span class="step-arrow">›</span>
+    <div class="step-item" id="tab2" onclick="goStep(2)">
+      <span class="step-num">2</span> Select Rooms
+    </div>
+    <span class="step-arrow">›</span>
+    <div class="step-item" id="tab3" onclick="goStep(3)">
+      <span class="step-num">3</span> Review & Submit
+    </div>
+  </div>
+
+  <!-- ── STEP 1: PROJECT DETAILS ── -->
+  <div class="panel active" id="panel1">
+    <div class="card">
+      <div class="card-head">
+        <span>📋</span>
+        <h2>Project Information</h2>
+      </div>
+      <div class="card-body">
+        <div class="grid-5" style="margin-bottom:12px">
+          <div class="field">
+            <label>Project Number *</label>
+            <input type="text" id="projNum" placeholder="RELOC-2026-001">
+          </div>
+          <div class="field">
+            <label>Project Name *</label>
+            <input type="text" id="projName" placeholder="e.g. Biology Dept Consolidation">
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select id="projStatus">
+              <option value="pending">Pending</option>
+              <option value="active" selected>Active</option>
+              <option value="in_progress">In Progress</option>
+              <option value="complete">Complete</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Scheduled Date</label>
+            <input type="date" id="schedDate">
+          </div>
+          <div class="field">
+            <label>Project Manager *</label>
+            <input type="text" id="projMgr" placeholder="Full name">
+          </div>
         </div>
-        <div class="field"><label>Scheduled Date</label><input type="date" id="schedDate"></div>
-        <div class="field"><label>Project Manager *</label><input type="text" id="projMgr" placeholder="Full name"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="btn btn-primary" onclick="nextStep(1)">
+            Next: Select Rooms →
+          </button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- FROM PANEL -->
-  <div class="card">
-    <div class="card-header" style="background:#fff8f5;border-bottom-color:#ffd6b3">
-      <div class="icon" style="background:#fff3e0;color:#b45309">↑</div>
-      <h2 style="color:#b45309">Vacating From</h2>
-      <span class="badge count-chip from" id="fromCount">0 rooms</span>
-    </div>
-    <div class="card-body">
-      <div class="selector-row">
-        <select id="fromBuilding" onchange="onBuildingChange('from')"><option value="">— Select Building —</option></select>
-        <select id="fromFloor" onchange="loadRooms('from')" disabled><option value="">— Select Floor —</option></select>
+  <!-- ── STEP 2: ROOM SELECTION ── -->
+  <div class="panel" id="panel2">
+    <div class="selector-grid section">
+
+      <!-- FROM SIDE -->
+      <div class="side-panel">
+        <div class="side-panel-head" style="background:#fffbf5;border-bottom-color:#fde8c8">
+          <span style="font-size:16px">↑</span>
+          <h3 style="color:#92400e">Vacating From</h3>
+          <span class="count from" id="fromCount">0 rooms</span>
+        </div>
+        <div class="side-panel-body">
+          <div class="cascade">
+            <select id="fromBuilding" onchange="onBuildingChange('from')">
+              <option value="">— Select Building —</option>
+            </select>
+            <select id="fromFloor" onchange="loadRooms('from')" disabled>
+              <option value="">— Select Floor —</option>
+            </select>
+          </div>
+          <input type="text" class="room-search" id="fromSearch" placeholder="Search rooms…" oninput="filterRooms('from')">
+          <div class="room-list" id="fromList">
+            <div class="empty">Select a building and floor to see rooms</div>
+          </div>
+        </div>
       </div>
-      <input type="text" class="room-search" id="fromSearch" placeholder="Search rooms…" oninput="filterRooms('from')" style="display:none">
-      <div class="room-list" id="fromRoomList"><div class="empty-state"><div class="icon">🏛</div>Select a building and floor to see rooms</div></div>
-    </div>
-  </div>
 
-  <!-- TO PANEL -->
-  <div class="card">
-    <div class="card-header" style="background:#f0faf0;border-bottom-color:#a7f3a0">
-      <div class="icon" style="background:var(--green-light);color:var(--green)">↓</div>
-      <h2 style="color:var(--green)">Relocating To</h2>
-      <span class="badge count-chip to" id="toCount">0 rooms</span>
-    </div>
-    <div class="card-body">
-      <div class="selector-row">
-        <select id="toBuilding" onchange="onBuildingChange('to')"><option value="">— Select Building —</option></select>
-        <select id="toFloor" onchange="loadRooms('to')" disabled><option value="">— Select Floor —</option></select>
+      <!-- TO SIDE -->
+      <div class="side-panel">
+        <div class="side-panel-head" style="background:#f0fdf4;border-bottom-color:#bbf7d0">
+          <span style="font-size:16px">↓</span>
+          <h3 style="color:#166534">Relocating To</h3>
+          <span class="count to" id="toCount">0 rooms</span>
+        </div>
+        <div class="side-panel-body">
+          <div class="cascade">
+            <select id="toBuilding" onchange="onBuildingChange('to')">
+              <option value="">— Select Building —</option>
+            </select>
+            <select id="toFloor" onchange="loadRooms('to')" disabled>
+              <option value="">— Select Floor —</option>
+            </select>
+          </div>
+          <input type="text" class="room-search" id="toSearch" placeholder="Search rooms…" oninput="filterRooms('to')">
+          <div class="room-list" id="toList">
+            <div class="empty">Select a building and floor to see rooms</div>
+          </div>
+        </div>
       </div>
-      <input type="text" class="room-search" id="toSearch" placeholder="Search rooms…" oninput="filterRooms('to')" style="display:none">
-      <div class="room-list" id="toRoomList"><div class="empty-state"><div class="icon">🏛</div>Select a building and floor to see rooms</div></div>
+
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <button class="btn btn-ghost" onclick="goStep(1)">← Back</button>
+      <div style="font-size:12px;color:var(--ink3)" id="selSummary">Select rooms on both sides</div>
+      <button class="btn btn-primary" onclick="nextStep(2)">
+        Next: Review Movements →
+      </button>
     </div>
   </div>
 
-  <!-- MOVEMENTS TABLE -->
-  <div class="card selected-panel" id="movementsCard" style="display:none">
-    <div class="card-header">
-      <div class="icon" style="background:#eff6ff;color:#1e40af">⇄</div>
-      <h2>Room Movements</h2>
-      <span class="badge count-chip neutral" id="movCount">0 pairs</span>
-      <button class="btn btn-secondary" style="margin-left:8px;font-size:11px;padding:4px 10px" onclick="clearAllMovements()">Clear all</button>
+  <!-- ── STEP 3: REVIEW & SUBMIT ── -->
+  <div class="panel" id="panel3">
+    <div class="card section">
+      <div class="card-head">
+        <span>⇄</span>
+        <h2>Room Movements</h2>
+        <span class="chip" id="movChip">0 pairs</span>
+        <button class="btn btn-ghost" style="margin-left:8px;font-size:11px;padding:4px 10px" onclick="goStep(2)">← Edit rooms</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;color:var(--red);border-color:var(--red)" onclick="clearAll()">Clear all</button>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div class="movements-wrap">
+          <table class="movements-table">
+            <thead>
+              <tr>
+                <th style="width:30px">#</th>
+                <th>From Room</th>
+                <th style="width:28px"></th>
+                <th>To Room</th>
+                <th>Occupants</th>
+                <th style="width:32px"></th>
+              </tr>
+            </thead>
+            <tbody id="movBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
-    <div class="card-body" style="padding:0">
-      <table class="movements-table">
-        <thead><tr>
-          <th style="width:32px">#</th><th>From Room</th>
-          <th style="width:36px" class="arrow-col">→</th>
-          <th>To Room</th><th>Occupants</th><th style="width:40px"></th>
-        </tr></thead>
-        <tbody id="movementsBody"></tbody>
-      </table>
+
+    <div class="action-bar">
+      <div class="summary" id="actionSummary">No movements added yet.</div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goStep(2)">← Back</button>
+        <button class="btn btn-primary btn-lg" id="submitBtn" onclick="confirmSubmit()" disabled>
+          Submit Project
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- ACTIONS -->
-  <div class="actions-bar">
-    <div class="summary" id="actionSummary">Select rooms to vacate and destination rooms, then submit.</div>
-    <div class="btn-group">
-      <button class="btn btn-secondary" onclick="autoMatch()">Auto-match rooms</button>
-      <button class="btn btn-primary" id="submitBtn" onclick="confirmSubmit()" disabled>Submit Relocation Project</button>
-    </div>
-  </div>
-
-</div>
+</div><!-- end mainApp -->
 
 <!-- CONFIRM MODAL -->
-<div class="modal-overlay" id="confirmModal">
+<div class="modal-bg" id="confirmModal">
   <div class="modal">
     <h3>Submit Relocation Project?</h3>
-    <p id="confirmText">This will create a project record and all room movement records in ArcGIS Online.</p>
-    <div class="btn-group">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    <p id="confirmText">Creating project and room movement records in ArcGIS Online.</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="submitProject()">Submit</button>
     </div>
   </div>
@@ -261,395 +703,448 @@ require([
   "esri/request"
 ], function(OAuthInfo, esriId, esriRequest) {
 
-// ── CONFIG ────────────────────────────────────────────────────────────────
-const CONFIG = {
-  portal:          "https://www.arcgis.com",
-  appId:           "X3IFUf6VCkpvjAiu",
-  indoorsItemId:   "be3195ff57944e6a891d18c2368f43f3",
-  relocItemId:     "1e604fdd098e4d1782b203d5ea7ecfc3",
-  layerFacilities: 2,
-  layerLevels:     1,
-  layerUnits:      3,
-  layerProjects:   20,
-  layerMovements:  22,
+// ─── CONFIG ───────────────────────────────────────────────────────────────
+const CFG = {
+  portal:    "https://www.arcgis.com",
+  appId:     "X3IFUf6VCkpvjAiu",
+  indoors:   "be3195ff57944e6a891d18c2368f43f3",
+  reloc:     "1e604fdd098e4d1782b203d5ea7ecfc3",
+  lFac:  2,  // Facilities layer index
+  lLvl:  1,  // Levels layer index
+  lUnit: 3,  // Units layer index  ← verify this
+  lProj: 20, // Relocation_Projects
+  lMov:  22, // Room_Movements
 };
 
-// popup:true opens AGOL login in a popup window
-// redirect URI must be registered in AGOL app as:
-// https://adrianzermeno.github.io/ttu-relocation-planner/
+// ─── Register OAuth (popup:true — clean popup login) ──────────────────────
 esriId.registerOAuthInfos([new OAuthInfo({
-  appId:     CONFIG.appId,
+  appId:     CFG.appId,
   popup:     true,
-  portalUrl: CONFIG.portal
+  portalUrl: CFG.portal
 })]);
 
-// ── State ─────────────────────────────────────────────────────────────────
-const state = {
-  token: null,
-  facilities: [], levels: {}, rooms: {},
-  fromSelected: [], toSelected: [], movements: [],
-  indoorsServiceUrl: null, relocServiceUrl: null,
+// ─── State ────────────────────────────────────────────────────────────────
+const S = {
+  indoorsUrl: null,
+  relocUrl:   null,
+  facilities: [],
+  levels:     {},  // facId -> [{id,name,order}]
+  rooms:      {},  // lvlId -> [{unitId,name,useType}]
+  from:       [],  // selected from rooms
+  to:         [],  // selected to rooms
+  movements:  [],  // [{from,to,occupants}]
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────
-function showStatus(msg, type = "info") {
-  const el = document.getElementById("statusBar");
-  el.className = `status-bar ${type}`;
-  el.innerHTML = msg;
-  if (type === "success") setTimeout(() => el.className = "status-bar", 5000);
-}
-function hideStatus() { document.getElementById("statusBar").className = "status-bar"; }
+// ─── Helpers ─────────────────────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 
-function showLoginPanel(msg) {
-  document.getElementById("loginPanel").style.display = "flex";
-  document.getElementById("app").style.display = "none";
-  document.getElementById("signOutBtn").style.display = "none";
-  document.getElementById("loginBtn").disabled = false;
-  document.getElementById("loginBtn").innerHTML = "Sign In with ArcGIS";
-  if (msg) document.getElementById("loginError").textContent = msg;
+function setStatus(msg, type) {
+  const b = $("statusBar");
+  b.className = `status show ${type}`;
+  b.innerHTML = msg;
+  if (type === "ok") setTimeout(() => b.className = "status", 4000);
 }
+function clearStatus() { $("statusBar").className = "status"; }
 
-function showAppPanel(username) {
-  document.getElementById("loginPanel").style.display = "none";
-  document.getElementById("app").style.display = "grid";
-  document.getElementById("signOutBtn").style.display = "inline-block";
-  if (username) document.getElementById("headerUser").textContent = `Signed in as ${username}`;
+function showLogin(msg) {
+  $("loginScreen").style.display = "flex";
+  $("mainApp").style.display = "none";
+  $("userPill").style.display = "none";
+  $("signOutBtn").style.display = "none";
+  if (msg) $("loginErr").textContent = msg;
 }
-
-async function agoQuery(url, params) {
-  const res = await esriRequest(url, { query: { ...params, f: "json" }, responseType: "json" });
-  return res.data;
-}
-async function agoPost(url, formData) {
-  const res = await esriRequest(url, { method: "post", body: formData, responseType: "json" });
-  return res.data;
+function showApp(user) {
+  $("loginScreen").style.display = "none";
+  $("mainApp").style.display = "block";
+  $("userPill").style.display = "inline-block";
+  $("userPill").textContent = user;
+  $("signOutBtn").style.display = "inline-block";
 }
 
-// ── Auth ──────────────────────────────────────────────────────────────────
+async function req(url, params) {
+  const r = await esriRequest(url, { query: { ...params, f: "json" }, responseType: "json" });
+  if (r.data?.error) throw new Error(r.data.error.message);
+  return r.data;
+}
+async function post(url, fd) {
+  const r = await esriRequest(url, { method: "post", body: fd, responseType: "json" });
+  if (r.data?.error) throw new Error(r.data.error.message);
+  return r.data;
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────
 async function doLogin() {
-  const btn   = document.getElementById("loginBtn");
-  const errEl = document.getElementById("loginError");
-  btn.disabled  = true;
-  btn.innerHTML = '<span class="spinner"></span> Signing in…';
-  errEl.textContent = "";
+  const btn = $("loginBtn"), err = $("loginErr");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Opening sign-in…';
+  err.textContent = "";
   try {
-    // getCredential with popup:false redirects the entire page to AGOL login
-    // then back here — SDK handles the redirect URI using current page URL
-    const cred = await esriId.getCredential(`${CONFIG.portal}/sharing`);
-    state.token = cred.token;
-    showAppPanel(cred.userId);
+    const cred = await esriId.getCredential(`${CFG.portal}/sharing`);
+    showApp(cred.userId);
     await loadApp();
   } catch(e) {
-    errEl.textContent = "Sign-in failed or was cancelled. Please try again.";
-    btn.disabled  = false;
+    err.textContent = "Sign-in failed or cancelled. Please try again.";
+  } finally {
+    btn.disabled = false;
     btn.innerHTML = "Sign In with ArcGIS";
   }
 }
 
 function doSignOut() {
   esriId.destroyCredentials();
-  state.token = null;
-  Object.assign(state, {
-    facilities:[], levels:{}, rooms:{},
-    fromSelected:[], toSelected:[], movements:[],
-    indoorsServiceUrl:null, relocServiceUrl:null
-  });
-  showLoginPanel("");
+  Object.assign(S, { indoorsUrl:null, relocUrl:null, facilities:[], levels:{}, rooms:{}, from:[], to:[], movements:[] });
+  showLogin("");
 }
 
-// ── Init — check if returning from OAuth redirect ─────────────────────────
 async function init() {
   try {
-    const cred = await esriId.checkSignInStatus(`${CONFIG.portal}/sharing`);
-    state.token = cred.token;
-    showAppPanel(cred.userId);
+    const cred = await esriId.checkSignInStatus(`${CFG.portal}/sharing`);
+    showApp(cred.userId);
     await loadApp();
   } catch(e) {
-    showLoginPanel();
+    showLogin();
   }
 }
 
-// ── Load service URLs then buildings ─────────────────────────────────────
+// ─── LOAD SERVICE URLS + BUILDINGS ───────────────────────────────────────
 async function loadApp() {
-  showStatus("⏳ Connecting to ArcGIS Online…", "info");
+  setStatus('<span class="spinner spinner-dark"></span> Connecting to ArcGIS Online…', "inf");
   try {
-    const item  = await agoQuery(`${CONFIG.portal}/sharing/rest/content/items/${CONFIG.indoorsItemId}`, {});
-    if (item.error) throw new Error(item.error.message);
-    state.indoorsServiceUrl = item.url;
-
-    const reloc = await agoQuery(`${CONFIG.portal}/sharing/rest/content/items/${CONFIG.relocItemId}`, {});
-    if (reloc.error) throw new Error(reloc.error.message);
-    state.relocServiceUrl = reloc.url;
-
+    const iItem = await req(`${CFG.portal}/sharing/rest/content/items/${CFG.indoors}`, {});
+    S.indoorsUrl = iItem.url;
+    const rItem = await req(`${CFG.portal}/sharing/rest/content/items/${CFG.reloc}`, {});
+    S.relocUrl = rItem.url;
     await loadFacilities();
   } catch(e) {
-    showStatus(`❌ Could not load services: ${e.message}`, "error");
-    console.error(e);
+    setStatus(`❌ Could not load services: ${e.message}`, "err");
   }
 }
 
 async function loadFacilities() {
   try {
-    const data = await agoQuery(`${state.indoorsServiceUrl}/${CONFIG.layerFacilities}/query`, {
+    const d = await req(`${S.indoorsUrl}/${CFG.lFac}/query`, {
       where: "1=1", outFields: "FACILITY_ID,NAME", returnGeometry: false
     });
-    if (data.error) throw new Error(data.error.message);
-    state.facilities = data.features
+    S.facilities = d.features
       .map(f => ({ id: f.attributes.FACILITY_ID, name: f.attributes.NAME || f.attributes.FACILITY_ID }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a,b) => a.name.localeCompare(b.name));
+
     ["fromBuilding","toBuilding"].forEach(id => {
-      const sel = document.getElementById(id);
-      sel.innerHTML = '<option value="">— Select Building —</option>';
-      state.facilities.forEach(f => {
+      const s = $(id);
+      s.innerHTML = '<option value="">— Select Building —</option>';
+      S.facilities.forEach(f => {
         const o = document.createElement("option");
-        o.value = f.id; o.textContent = f.name; sel.appendChild(o);
+        o.value = f.id; o.textContent = f.name; s.appendChild(o);
       });
     });
-    hideStatus();
-    showStatus(`✓ Connected — ${state.facilities.length} buildings loaded`, "success");
+    clearStatus();
+    setStatus(`✓ ${S.facilities.length} buildings loaded`, "ok");
   } catch(e) {
-    showStatus(`❌ Failed to load buildings: ${e.message}`, "error");
-    console.error(e);
+    setStatus(`❌ Failed to load buildings: ${e.message}`, "err");
   }
 }
 
-// ── Building → Floor cascade ──────────────────────────────────────────────
+// ─── BUILDING → FLOOR CASCADE ────────────────────────────────────────────
 async function onBuildingChange(side) {
-  const bSel = document.getElementById(`${side}Building`);
-  const fSel = document.getElementById(`${side}Floor`);
+  const bSel = $(`${side}Building`), fSel = $(`${side}Floor`);
   const fid  = bSel.value;
   fSel.innerHTML = '<option value="">— Select Floor —</option>';
   fSel.disabled  = true;
-  document.getElementById(`${side}Search`).style.display = "none";
-  document.getElementById(`${side}RoomList`).innerHTML =
-    `<div class="empty-state"><div class="icon">🏛</div>Select a floor to see rooms</div>`;
+  $(`${side}Search`).style.display = "none";
+  $(`${side}List`).innerHTML = '<div class="empty">Select a floor to see rooms</div>';
   if (!fid) return;
   fSel.innerHTML = '<option value="">Loading…</option>';
   try {
-    if (!state.levels[fid]) {
-      const data = await agoQuery(`${state.indoorsServiceUrl}/${CONFIG.layerLevels}/query`, {
+    if (!S.levels[fid]) {
+      const d = await req(`${S.indoorsUrl}/${CFG.lLvl}/query`, {
         where: `FACILITY_ID = '${fid}'`, outFields: "LEVEL_ID,NAME,VERTICAL_ORDER",
         returnGeometry: false, orderByFields: "VERTICAL_ORDER"
       });
-      if (data.error) throw new Error(data.error.message);
-      state.levels[fid] = data.features
+      S.levels[fid] = d.features
         .map(f => ({ id: f.attributes.LEVEL_ID, name: f.attributes.NAME || f.attributes.LEVEL_ID, order: f.attributes.VERTICAL_ORDER }))
-        .sort((a, b) => a.order - b.order);
+        .sort((a,b) => a.order - b.order);
     }
     fSel.innerHTML = '<option value="">— Select Floor —</option>';
-    state.levels[fid].forEach(l => {
+    S.levels[fid].forEach(l => {
       const o = document.createElement("option");
       o.value = l.id; o.textContent = l.name; fSel.appendChild(o);
     });
     fSel.disabled = false;
   } catch(e) {
-    fSel.innerHTML = '<option value="">Error</option>';
-    showStatus(`❌ Floors failed: ${e.message}`, "error");
+    fSel.innerHTML = '<option value="">Error loading floors</option>';
+    setStatus(`❌ Floors: ${e.message}`, "err");
   }
 }
 
-// ── Floor → Rooms ─────────────────────────────────────────────────────────
+// ─── FLOOR → ROOMS ────────────────────────────────────────────────────────
 async function loadRooms(side) {
-  const fSel    = document.getElementById(`${side}Floor`);
-  const levelId = fSel.value;
-  const listEl  = document.getElementById(`${side}RoomList`);
-  const srchEl  = document.getElementById(`${side}Search`);
-  if (!levelId) {
-    listEl.innerHTML = `<div class="empty-state"><div class="icon">🏛</div>Select a floor to see rooms</div>`;
-    srchEl.style.display = "none"; return;
+  const fSel  = $(`${side}Floor`), lvlId = fSel.value;
+  const listEl = $(`${side}List`), srch  = $(`${side}Search`);
+  if (!lvlId) {
+    listEl.innerHTML = '<div class="empty">Select a floor to see rooms</div>';
+    srch.style.display = "none"; return;
   }
-  listEl.innerHTML = `<div class="loading-state">Loading rooms…</div>`;
+  listEl.innerHTML = '<div class="loading">Loading rooms…</div>';
   try {
-    if (!state.rooms[levelId]) {
-      const data = await agoQuery(`${state.indoorsServiceUrl}/${CONFIG.layerUnits}/query`, {
-        where: `LEVEL_ID = '${levelId}'`, outFields: "UNIT_ID,NAME,USE_TYPE",
+    if (!S.rooms[lvlId]) {
+      const d = await req(`${S.indoorsUrl}/${CFG.lUnit}/query`, {
+        where: `LEVEL_ID = '${lvlId}'`, outFields: "UNIT_ID,NAME,USE_TYPE",
         returnGeometry: false, orderByFields: "NAME"
       });
-      if (data.error) throw new Error(data.error.message);
-      state.rooms[levelId] = data.features
+      S.rooms[lvlId] = d.features
         .map(f => ({ unitId: f.attributes.UNIT_ID, name: f.attributes.NAME || f.attributes.UNIT_ID, useType: f.attributes.USE_TYPE || "" }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+        .sort((a,b) => a.name.localeCompare(b.name));
     }
-    srchEl.style.display = "block"; srchEl.value = "";
-    renderRoomList(side, state.rooms[levelId]);
+    srch.style.display = "block"; srch.value = "";
+    renderRooms(side, S.rooms[lvlId]);
   } catch(e) {
-    listEl.innerHTML = `<div class="empty-state" style="color:var(--red)">Error: ${e.message}</div>`;
-    showStatus(`❌ Rooms failed: ${e.message}`, "error");
+    listEl.innerHTML = `<div class="empty" style="color:var(--red)">Error: ${e.message}</div>`;
   }
 }
 
 function filterRooms(side) {
-  const levelId = document.getElementById(`${side}Floor`).value;
-  const q       = document.getElementById(`${side}Search`).value.toLowerCase();
-  if (!levelId || !state.rooms[levelId]) return;
-  renderRoomList(side, q ? state.rooms[levelId].filter(r =>
-    r.name.toLowerCase().includes(q) || r.unitId.toLowerCase().includes(q) || (r.useType||"").toLowerCase().includes(q)
-  ) : state.rooms[levelId]);
+  const lvlId = $(`${side}Floor`).value;
+  const q     = $(`${side}Search`).value.toLowerCase();
+  if (!lvlId || !S.rooms[lvlId]) return;
+  renderRooms(side, q
+    ? S.rooms[lvlId].filter(r => r.name.toLowerCase().includes(q) || r.unitId.toLowerCase().includes(q) || r.useType.toLowerCase().includes(q))
+    : S.rooms[lvlId]);
 }
 
-function renderRoomList(side, rooms) {
-  const listEl  = document.getElementById(`${side}RoomList`);
-  const arr     = side === "from" ? state.fromSelected : state.toSelected;
-  const selIds  = new Set(arr.map(r => r.unitId));
-  if (!rooms.length) { listEl.innerHTML = `<div class="empty-state"><div class="icon">🚪</div>No rooms found</div>`; return; }
-  const allSel  = rooms.every(r => selIds.has(r.unitId));
-  let html = `<div class="select-all-row">
-    <label><input type="checkbox" ${allSel?'checked':''} onchange="toggleSelectAll('${side}',this.checked)"> Select all (${rooms.length})</label>
-    <span style="font-size:11px">${selIds.size} selected</span></div>`;
+function renderRooms(side, rooms) {
+  const listEl = $(`${side}List`);
+  const arr    = side === "from" ? S.from : S.to;
+  const selIds = new Set(arr.map(r => r.unitId));
+  if (!rooms.length) { listEl.innerHTML = '<div class="empty">No rooms found</div>'; return; }
+  const allSel = rooms.length > 0 && rooms.every(r => selIds.has(r.unitId));
+  let html = `<div class="room-all-row">
+    <label><input type="checkbox" ${allSel?'checked':''} onchange="toggleAll('${side}',this.checked)"> Select all (${rooms.length})</label>
+    <span>${selIds.size} selected</span></div>`;
   rooms.forEach(r => {
-    const chk = selIds.has(r.unitId) ? "checked" : "";
-    const cls = selIds.has(r.unitId) ? "selected" : "";
-    const typ = r.useType ? `<span class="room-type">${r.useType}</span>` : "";
-    html += `<div class="room-item ${cls}" onclick="toggleRoom('${side}','${r.unitId}',this)">
-      <input type="checkbox" ${chk} onclick="event.stopPropagation();toggleRoom('${side}','${r.unitId}',this.closest('.room-item'))">
-      <span class="room-name">${r.name}</span>${typ}<span class="room-id">${r.unitId}</span></div>`;
+    const chk = selIds.has(r.unitId);
+    const typ = r.useType ? `<span class="rtype">${r.useType}</span>` : "";
+    html += `<div class="room-item${chk?' sel':''}" onclick="toggleRoom('${side}','${r.unitId}',this)">
+      <input type="checkbox" ${chk?'checked':''} onclick="event.stopPropagation();toggleRoom('${side}','${r.unitId}',this.closest('.room-item'))">
+      <span class="rname">${r.name}</span>${typ}<span class="rid">${r.unitId}</span></div>`;
   });
   listEl.innerHTML = html;
 }
 
-function toggleSelectAll(side, checked) {
-  const levelId = document.getElementById(`${side}Floor`).value;
-  if (!levelId || !state.rooms[levelId]) return;
-  const q    = document.getElementById(`${side}Search`).value.toLowerCase();
-  const rooms = q ? state.rooms[levelId].filter(r => r.name.toLowerCase().includes(q) || r.unitId.toLowerCase().includes(q)) : state.rooms[levelId];
-  const arr   = side === "from" ? state.fromSelected : state.toSelected;
-  const fn    = getFacilityName(side), ln = getLevelName(side);
-  if (checked) { rooms.forEach(r => { if (!arr.find(s => s.unitId === r.unitId)) arr.push({...r, facilityName:fn, levelName:ln}); }); }
-  else { const ids = new Set(rooms.map(r => r.unitId)); if (side === "from") state.fromSelected = state.fromSelected.filter(r => !ids.has(r.unitId)); else state.toSelected = state.toSelected.filter(r => !ids.has(r.unitId)); }
-  renderRoomList(side, rooms); updateCounts(); syncMovements();
+function toggleAll(side, checked) {
+  const lvlId = $(`${side}Floor`).value;
+  if (!lvlId || !S.rooms[lvlId]) return;
+  const q     = $(`${side}Search`).value.toLowerCase();
+  const rooms = q ? S.rooms[lvlId].filter(r => r.name.toLowerCase().includes(q) || r.unitId.toLowerCase().includes(q)) : S.rooms[lvlId];
+  const arr   = side === "from" ? S.from : S.to;
+  const fn    = getBuildingName(side), ln = getFloorName(side);
+  if (checked) {
+    rooms.forEach(r => { if (!arr.find(x => x.unitId === r.unitId)) arr.push({...r, facName:fn, lvlName:ln}); });
+  } else {
+    const ids = new Set(rooms.map(r => r.unitId));
+    if (side === "from") S.from = S.from.filter(r => !ids.has(r.unitId));
+    else                 S.to   = S.to.filter(r => !ids.has(r.unitId));
+  }
+  renderRooms(side, rooms);
+  updateCounts();
+  syncMovements();
 }
 
 function toggleRoom(side, unitId, el) {
-  const arr     = side === "from" ? state.fromSelected : state.toSelected;
-  const idx     = arr.findIndex(r => r.unitId === unitId);
-  const levelId = document.getElementById(`${side}Floor`).value;
-  const room    = state.rooms[levelId]?.find(r => r.unitId === unitId);
+  const arr   = side === "from" ? S.from : S.to;
+  const idx   = arr.findIndex(r => r.unitId === unitId);
+  const lvlId = $(`${side}Floor`).value;
+  const room  = S.rooms[lvlId]?.find(r => r.unitId === unitId);
   if (!room) return;
-  const cb = el.querySelector('input[type="checkbox"]');
-  if (idx === -1) { arr.push({...room, facilityName:getFacilityName(side), levelName:getLevelName(side)}); el.classList.add("selected"); if (cb) cb.checked = true; }
-  else { arr.splice(idx,1); el.classList.remove("selected"); if (cb) cb.checked = false; }
-  updateCounts(); syncMovements();
-  const saCb = document.querySelector(`#${side}RoomList .select-all-row input`);
-  if (saCb) saCb.checked = (state.rooms[levelId]||[]).every(r => new Set(arr.map(x=>x.unitId)).has(r.unitId));
+  const cb    = el.querySelector('input[type="checkbox"]');
+  if (idx === -1) {
+    arr.push({...room, facName:getBuildingName(side), lvlName:getFloorName(side)});
+    el.classList.add("sel"); if (cb) cb.checked = true;
+  } else {
+    arr.splice(idx,1);
+    el.classList.remove("sel"); if (cb) cb.checked = false;
+  }
+  updateCounts();
+  syncMovements();
+  // update select-all checkbox
+  const allRooms = S.rooms[lvlId] || [];
+  const sa = document.querySelector(`#${side}List .room-all-row input`);
+  if (sa) sa.checked = allRooms.length > 0 && allRooms.every(r => new Set(arr.map(x=>x.unitId)).has(r.unitId));
 }
 
-function getFacilityName(side) { const s = document.getElementById(`${side}Building`); return s.options[s.selectedIndex]?.text || ""; }
-function getLevelName(side)    { const s = document.getElementById(`${side}Floor`);    return s.options[s.selectedIndex]?.text || ""; }
+function getBuildingName(side) { const s = $(`${side}Building`); return s.options[s.selectedIndex]?.text || ""; }
+function getFloorName(side)    { const s = $(`${side}Floor`);    return s.options[s.selectedIndex]?.text || ""; }
 
-// ── Movements table ───────────────────────────────────────────────────────
+function updateCounts() {
+  $("fromCount").textContent = `${S.from.length} room${S.from.length!==1?'s':''}`;
+  $("toCount").textContent   = `${S.to.length} room${S.to.length!==1?'s':''}`;
+  const t = `${S.from.length} from / ${S.to.length} to`;
+  $("selSummary").textContent = S.from.length || S.to.length ? t : "Select rooms on both sides";
+}
+
+// ─── MOVEMENTS ────────────────────────────────────────────────────────────
 function syncMovements() {
-  const from = state.fromSelected, to = state.toSelected;
-  const max  = Math.max(from.length, to.length);
-  const ex   = {};
-  state.movements.forEach(m => { ex[(m.from?.unitId||"")+(m.to?.unitId||"")] = m.occupants; });
-  state.movements = Array.from({length:max}, (_,i) => {
-    const f = from[i]||null, t = to[i]||null;
+  const max = Math.max(S.from.length, S.to.length);
+  // preserve existing occupants
+  const ex = {};
+  S.movements.forEach(m => { ex[(m.from?.unitId||"")+(m.to?.unitId||"")] = m.occupants; });
+  S.movements = Array.from({length:max}, (_,i) => {
+    const f = S.from[i]||null, t = S.to[i]||null;
     return { from:f, to:t, occupants: ex[(f?.unitId||"")+(t?.unitId||"")] || [{name:"",email:"",dept:""}] };
   });
-  renderMovements(); updateSubmitState();
+  renderMovements();
+  updateSubmit();
 }
 
 function renderMovements() {
-  const card = document.getElementById("movementsCard"), tbody = document.getElementById("movementsBody");
-  if (!state.movements.length) { card.style.display="none"; return; }
-  card.style.display = "block";
-  document.getElementById("movCount").textContent = `${state.movements.length} pair${state.movements.length!==1?'s':''}`;
+  const tbody = $("movBody");
+  $("movChip").textContent = `${S.movements.length} pair${S.movements.length!==1?'s':''}`;
+  if (!S.movements.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--ink3)">No movements yet — go back and select rooms</td></tr>`;
+    return;
+  }
   tbody.innerHTML = "";
-  state.movements.forEach((mv, i) => {
+  S.movements.forEach((mv, i) => {
     const row = document.createElement("tr");
-    const fc = mv.from ? `<div style="font-weight:500">${mv.from.name}</div><div class="mono">${mv.from.facilityName}</div><div class="mono">${mv.from.levelName}</div><div class="mono" style="font-size:10px;color:var(--ink4)">${mv.from.unitId}</div>` : `<span style="color:var(--ink4);font-style:italic">— unmatched —</span>`;
-    const tc = mv.to   ? `<div style="font-weight:500">${mv.to.name}</div><div class="mono">${mv.to.facilityName}</div><div class="mono">${mv.to.levelName}</div><div class="mono" style="font-size:10px;color:var(--ink4)">${mv.to.unitId}</div>` : `<span style="color:var(--ink4);font-style:italic">— unmatched —</span>`;
-    let oc = mv.occupants.map((o,j) => `<div class="occupant-row"><input placeholder="Name" value="${o.name}" oninput="updateOccupant(${i},${j},'name',this.value)" style="max-width:120px"><input placeholder="Email" value="${o.email}" oninput="updateOccupant(${i},${j},'email',this.value)" style="max-width:140px"><input placeholder="Dept" value="${o.dept}" oninput="updateOccupant(${i},${j},'dept',this.value)" style="max-width:90px"><button class="btn-remove" onclick="removeOccupant(${i},${j})">×</button></div>`).join("");
-    oc += `<button class="btn-add-occ" onclick="addOccupant(${i})">+ Add occupant</button>`;
-    row.innerHTML = `<td style="color:var(--ink3);font-family:'DM Mono',monospace;font-size:12px">${i+1}</td><td>${fc}</td><td class="arrow-col">→</td><td>${tc}</td><td>${oc}</td><td><button class="btn-remove" onclick="removeMovement(${i})">×</button></td>`;
+    const fc  = mv.from ? `<div class="cell-main">${mv.from.name}</div><div class="cell-sub">${mv.from.facName} · ${mv.from.lvlName}</div><div class="cell-sub">${mv.from.unitId}</div>` : `<span class="unmatched">— unmatched —</span>`;
+    const tc  = mv.to   ? `<div class="cell-main">${mv.to.name}</div><div class="cell-sub">${mv.to.facName} · ${mv.to.lvlName}</div><div class="cell-sub">${mv.to.unitId}</div>` : `<span class="unmatched">— unmatched —</span>`;
+    let oc    = mv.occupants.map((o,j) => `
+      <div class="occ-row">
+        <input class="w-name" placeholder="Name" value="${o.name}" oninput="updOcc(${i},${j},'name',this.value)">
+        <input class="w-email" placeholder="Email" value="${o.email}" oninput="updOcc(${i},${j},'email',this.value)">
+        <input class="w-dept" placeholder="Dept" value="${o.dept}" oninput="updOcc(${i},${j},'dept',this.value)">
+        <button class="btn-xi" onclick="rmOcc(${i},${j})">×</button>
+      </div>`).join("");
+    oc += `<button class="btn-add-occ" onclick="addOcc(${i})">+ occupant</button>`;
+    row.innerHTML = `
+      <td style="color:var(--ink4);font-family:'IBM Plex Mono',monospace;font-size:11px">${i+1}</td>
+      <td>${fc}</td><td class="arrow-col">→</td><td>${tc}</td>
+      <td>${oc}</td>
+      <td><button class="btn-xi" onclick="rmMov(${i})" title="Remove">×</button></td>`;
     tbody.appendChild(row);
   });
 }
 
-function updateOccupant(mi,oi,f,v) { state.movements[mi].occupants[oi][f]=v; }
-function addOccupant(mi) { state.movements[mi].occupants.push({name:"",email:"",dept:""}); renderMovements(); }
-function removeOccupant(mi,oi) { state.movements[mi].occupants.splice(oi,1); if (!state.movements[mi].occupants.length) state.movements[mi].occupants=[{name:"",email:"",dept:""}]; renderMovements(); }
-function removeMovement(i) {
-  const mv=state.movements[i];
-  if (mv.from) state.fromSelected=state.fromSelected.filter(r=>r.unitId!==mv.from.unitId);
-  if (mv.to)   state.toSelected=state.toSelected.filter(r=>r.unitId!==mv.to.unitId);
-  state.movements.splice(i,1); updateCounts(); renderMovements(); updateSubmitState();
-  ["from","to"].forEach(s=>{ if (document.getElementById(`${s}Floor`).value) filterRooms(s); });
+function updOcc(mi,oi,f,v) { S.movements[mi].occupants[oi][f]=v; }
+function addOcc(mi) { S.movements[mi].occupants.push({name:"",email:"",dept:""}); renderMovements(); }
+function rmOcc(mi,oi) { S.movements[mi].occupants.splice(oi,1); if (!S.movements[mi].occupants.length) S.movements[mi].occupants=[{name:"",email:"",dept:""}]; renderMovements(); }
+function rmMov(i) {
+  const mv = S.movements[i];
+  if (mv.from) S.from = S.from.filter(r => r.unitId !== mv.from.unitId);
+  if (mv.to)   S.to   = S.to.filter(r => r.unitId !== mv.to.unitId);
+  S.movements.splice(i,1);
+  updateCounts(); renderMovements(); updateSubmit();
+  ["from","to"].forEach(s => { if ($(`${s}Floor`).value) filterRooms(s); });
 }
-function clearAllMovements() {
-  state.fromSelected=[]; state.toSelected=[]; state.movements=[];
-  updateCounts(); renderMovements(); updateSubmitState();
-  ["from","to"].forEach(s=>{ if (document.getElementById(`${s}Floor`).value) filterRooms(s); });
-}
-function autoMatch() { showStatus("✓ Rooms matched in order selected. Adjust in the table if needed.", "success"); }
-function updateCounts() {
-  document.getElementById("fromCount").textContent=`${state.fromSelected.length} room${state.fromSelected.length!==1?'s':''}`;
-  document.getElementById("toCount").textContent=`${state.toSelected.length} room${state.toSelected.length!==1?'s':''}`;
-}
-function updateSubmitState() {
-  const paired=state.movements.filter(m=>m.from&&m.to).length;
-  const unmatched=state.movements.filter(m=>!m.from||!m.to).length;
-  document.getElementById("submitBtn").disabled=paired===0;
-  let s=`<strong>${paired}</strong> movement${paired!==1?'s':''} ready`;
-  if (unmatched) s+=` · <span style="color:var(--amber)">${unmatched} unmatched</span>`;
-  document.getElementById("actionSummary").innerHTML=s||"Select rooms to vacate and destination rooms, then submit.";
+function clearAll() {
+  S.from=[]; S.to=[]; S.movements=[];
+  updateCounts(); renderMovements(); updateSubmit();
+  ["from","to"].forEach(s => { if ($(`${s}Floor`).value) filterRooms(s); });
 }
 
-// ── Submit ────────────────────────────────────────────────────────────────
-function confirmSubmit() {
-  const n=document.getElementById("projNum").value.trim(), nm=document.getElementById("projName").value.trim(), mg=document.getElementById("projMgr").value.trim();
-  if (!n||!nm||!mg) { showStatus("❌ Please fill in Project Number, Project Name, and Project Manager.", "error"); return; }
-  const p=state.movements.filter(m=>m.from&&m.to).length;
-  document.getElementById("confirmText").textContent=`This will create project "${n}" and submit ${p} room movement record${p!==1?'s':''} to ArcGIS Online.`;
-  document.getElementById("confirmModal").classList.add("open");
+function updateSubmit() {
+  const paired = S.movements.filter(m => m.from && m.to).length;
+  const unmatched = S.movements.filter(m => !m.from || !m.to).length;
+  $("submitBtn").disabled = paired === 0;
+  let txt = `<strong>${paired}</strong> movement${paired!==1?'s':''} ready to submit`;
+  if (unmatched) txt += ` · <span style="color:var(--amber)">${unmatched} unmatched</span>`;
+  $("actionSummary").innerHTML = paired ? txt : "No movements added yet.";
 }
-function closeModal() { document.getElementById("confirmModal").classList.remove("open"); }
+
+// ─── STEP NAVIGATION ─────────────────────────────────────────────────────
+function goStep(n) {
+  [1,2,3].forEach(i => {
+    $(`panel${i}`).classList.toggle("active", i===n);
+    const tab = $(`tab${i}`);
+    tab.classList.remove("active","done");
+    if (i === n) tab.classList.add("active");
+    else if (i < n) tab.classList.add("done");
+  });
+}
+function nextStep(from) {
+  if (from === 1) {
+    const num = $("projNum").value.trim(), nm = $("projName").value.trim(), mg = $("projMgr").value.trim();
+    if (!num || !nm || !mg) { setStatus("❌ Please fill in Project Number, Project Name, and Project Manager.", "err"); return; }
+    clearStatus();
+  }
+  if (from === 2) {
+    const paired = S.movements.filter(m => m.from && m.to).length;
+    if (paired === 0) { setStatus("❌ Please select at least one room on both sides.", "err"); return; }
+    clearStatus();
+  }
+  goStep(from + 1);
+}
+
+// ─── SUBMIT ───────────────────────────────────────────────────────────────
+function confirmSubmit() {
+  const paired = S.movements.filter(m => m.from && m.to).length;
+  $("confirmText").textContent = `This will create project "${$("projNum").value.trim()}" with ${paired} room movement record${paired!==1?'s':''} in ArcGIS Online.`;
+  $("confirmModal").classList.add("open");
+}
+function closeModal() { $("confirmModal").classList.remove("open"); }
 
 async function submitProject() {
   closeModal();
-  const btn=document.getElementById("submitBtn");
-  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Submitting…';
-  showStatus("⏳ Submitting to ArcGIS Online…","info");
-  const n=document.getElementById("projNum").value.trim(), nm=document.getElementById("projName").value.trim(),
-        mg=document.getElementById("projMgr").value.trim(), st=document.getElementById("projStatus").value,
-        sv=document.getElementById("schedDate").value, se=sv?new Date(sv).getTime():null;
-  try {
-    const pf=new FormData();
-    pf.append("features", JSON.stringify([{attributes:{PROJECT_NUMBER:n,PROJECT_NAME:nm,STATUS:st,PROJECT_MANAGER:mg,START_DATE:se}}]));
-    pf.append("f","json");
-    const pd=await agoPost(`${state.relocServiceUrl}/${CONFIG.layerProjects}/addFeatures`,pf);
-    if (!pd.addResults?.[0]?.success) throw new Error(pd.addResults?.[0]?.error?.description||"Failed to create project");
-    const guid=pd.addResults[0].globalId||pd.addResults[0].objectId;
+  const btn = $("submitBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Submitting…';
+  setStatus('<span class="spinner spinner-dark"></span> Submitting to ArcGIS Online…', "inf");
 
-    const paired=state.movements.filter(m=>m.from&&m.to);
-    const mf=new FormData();
-    mf.append("features", JSON.stringify(paired.map(mv=>({attributes:{
-      PROJECT_GUID:guid, UNIT_ID_FROM:mv.from.unitId, UNIT_ID_TO:mv.to.unitId,
-      ROOM_NAME_FROM:mv.from.name, ROOM_NAME_TO:mv.to.name,
-      FACILITY_NAME_FROM:mv.from.facilityName, FACILITY_NAME_TO:mv.to.facilityName,
-      LEVEL_NAME_FROM:mv.from.levelName, LEVEL_NAME_TO:mv.to.levelName,
-      MOVE_STATUS:"scheduled", SCHEDULED_DATE:se,
-      OCCUPANT_NAME:mv.occupants[0]?.name||"", OCCUPANT_EMAIL:mv.occupants[0]?.email||"", DEPT:mv.occupants[0]?.dept||""
+  const num  = $("projNum").value.trim();
+  const nm   = $("projName").value.trim();
+  const mg   = $("projMgr").value.trim();
+  const st   = $("projStatus").value;
+  const sv   = $("schedDate").value;
+  const se   = sv ? new Date(sv).getTime() : null;
+
+  try {
+    // 1 — create project
+    const pf = new FormData();
+    pf.append("features", JSON.stringify([{attributes:{PROJECT_NUMBER:num,PROJECT_NAME:nm,STATUS:st,PROJECT_MANAGER:mg,START_DATE:se}}]));
+    pf.append("f","json");
+    const pd = await post(`${S.relocUrl}/${CFG.lProj}/addFeatures`, pf);
+    if (!pd.addResults?.[0]?.success) throw new Error(pd.addResults?.[0]?.error?.description || "Failed to create project");
+    const guid = pd.addResults[0].globalId || pd.addResults[0].objectId;
+
+    // 2 — create movements
+    const paired = S.movements.filter(m => m.from && m.to);
+    const mf = new FormData();
+    mf.append("features", JSON.stringify(paired.map(mv => ({attributes:{
+      PROJECT_GUID:    guid,
+      UNIT_ID_FROM:    mv.from.unitId,   UNIT_ID_TO:    mv.to.unitId,
+      ROOM_NAME_FROM:  mv.from.name,     ROOM_NAME_TO:  mv.to.name,
+      FACILITY_NAME_FROM: mv.from.facName, FACILITY_NAME_TO: mv.to.facName,
+      LEVEL_NAME_FROM: mv.from.lvlName,  LEVEL_NAME_TO: mv.to.lvlName,
+      MOVE_STATUS:     "scheduled",      SCHEDULED_DATE: se,
+      OCCUPANT_NAME:   mv.occupants[0]?.name  || "",
+      OCCUPANT_EMAIL:  mv.occupants[0]?.email || "",
+      DEPT:            mv.occupants[0]?.dept  || ""
     }}))));
     mf.append("f","json");
-    const md=await agoPost(`${state.relocServiceUrl}/${CONFIG.layerMovements}/addFeatures`,mf);
-    const ok=md.addResults?.filter(r=>r.success).length||0;
+    const md = await post(`${S.relocUrl}/${CFG.lMov}/addFeatures`, mf);
+    const ok = md.addResults?.filter(r => r.success).length || 0;
     if (!ok) throw new Error("No movement records were created");
 
-    showStatus(`✓ Project <strong>${n}</strong> created with <strong>${ok}</strong> room movements.`,"success");
-    clearAllMovements();
-    ["projNum","projName","projMgr","schedDate"].forEach(id=>document.getElementById(id).value="");
+    setStatus(`✓ Project <strong>${num}</strong> created with <strong>${ok}</strong> room movements.`, "ok");
+    // reset
+    clearAll();
+    ["projNum","projName","projMgr","schedDate"].forEach(id => $(id).value = "");
+    goStep(1);
   } catch(e) {
-    showStatus(`❌ Submission failed: ${e.message}`,"error"); console.error(e);
+    setStatus(`❌ Submission failed: ${e.message}`, "err");
   } finally {
-    btn.disabled=false; btn.innerHTML="Submit Relocation Project"; updateSubmitState();
+    btn.disabled = false;
+    btn.innerHTML = "Submit Project";
+    updateSubmit();
   }
 }
 
-// Expose to HTML onclick
-Object.assign(window, { doLogin, doSignOut, onBuildingChange, loadRooms, filterRooms,
-  toggleSelectAll, toggleRoom, updateOccupant, addOccupant, removeOccupant,
-  removeMovement, clearAllMovements, autoMatch, confirmSubmit, closeModal, submitProject });
+// expose to HTML
+Object.assign(window, {
+  doLogin, doSignOut, onBuildingChange, loadRooms, filterRooms,
+  toggleAll, toggleRoom, updOcc, addOcc, rmOcc, rmMov, clearAll,
+  goStep, nextStep, confirmSubmit, closeModal, submitProject
+});
 
 init();
 }); // end require
