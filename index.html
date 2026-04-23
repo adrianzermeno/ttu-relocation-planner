@@ -767,12 +767,20 @@ function showApp(user) {
 let _token = null; // store token for manual attachment
 
 async function req(url, params) {
-  const p = new URLSearchParams({ ...params, f: "json" });
-  if (_token) p.append("token", _token);
-  const res  = await fetch(`${url}?${p.toString()}`);
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data;
+  try {
+    const p = new URLSearchParams({ f: "json" });
+    if (_token) p.append("token", _token);
+    // Only append defined params
+    Object.entries(params || {}).forEach(([k,v]) => { if (v !== undefined && v !== null) p.append(k, v); });
+    const fullUrl = `${url}?${p.toString()}`;
+    const res  = await fetch(fullUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status} at ${url}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    return data;
+  } catch(e) {
+    throw new Error(`${e.message} [${url}]`);
+  }
 }
 async function post(url, fd) {
   if (_token) fd.append("token", _token);
@@ -842,9 +850,9 @@ async function loadApp() {
   setStatus('<span class="spinner spinner-dark"></span> Connecting to ArcGIS Online…', "inf");
   try {
     // Hardcoded service URLs — no item lookup needed
-    S.facilitiesUrl = "https://services7.arcgis.com/e2jd7H2H5rwyzBMm/arcgis/rest/services/Facilities/FeatureServer/0";
-    S.levelsUrl     = "https://services7.arcgis.com/e2jd7H2H5rwyzBMm/arcgis/rest/services/Levels/FeatureServer/0";
-    S.unitsUrl      = "https://services7.arcgis.com/e2jd7H2H5rwyzBMm/arcgis/rest/services/Units_vw1/FeatureServer/0";
+    S.facilitiesUrl = "https://services7.arcgis.com/e2jd7H2H5rwyzBMm/arcgis/rest/services/Facilities/FeatureServer";
+    S.levelsUrl     = "https://services7.arcgis.com/e2jd7H2H5rwyzBMm/arcgis/rest/services/Levels/FeatureServer";
+    S.unitsUrl      = "https://services7.arcgis.com/e2jd7H2H5rwyzBMm/arcgis/rest/services/Units_vw1/FeatureServer";
     S.relocUrl      = "https://services7.arcgis.com/e2jd7H2H5rwyzBMm/arcgis/rest/services/TTU_RelocationMap/FeatureServer";
     await loadFacilities();
   } catch(e) {
@@ -855,7 +863,7 @@ async function loadApp() {
 
 async function loadFacilities() {
   try {
-    const d = await req(`${S.facilitiesUrl}/query`, {
+    const d = await req(`${S.facilitiesUrl}/0/query`, {
       where: "1=1", outFields: "FACILITY_ID,NAME", returnGeometry: false
     });
     S.facilities = d.features
@@ -889,7 +897,7 @@ async function onBuildingChange(side) {
   fSel.innerHTML = '<option value="">Loading…</option>';
   try {
     if (!S.levels[fid]) {
-      const d = await req(`${S.levelsUrl}/query`, {
+      const d = await req(`${S.levelsUrl}/0/query`, {
         where: `FACILITY_ID = '${fid}'`, outFields: "LEVEL_ID,NAME,VERTICAL_ORDER",
         returnGeometry: false, orderByFields: "VERTICAL_ORDER"
       });
@@ -920,7 +928,7 @@ async function loadRooms(side) {
   listEl.innerHTML = '<div class="loading">Loading rooms…</div>';
   try {
     if (!S.rooms[lvlId]) {
-      const d = await req(`${S.unitsUrl}/query`, {
+      const d = await req(`${S.unitsUrl}/0/query`, {
         where: `LEVEL_ID = '${lvlId}'`, outFields: "UNIT_ID,NAME,USE_TYPE",
         returnGeometry: false, orderByFields: "NAME"
       });
