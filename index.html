@@ -728,14 +728,12 @@ const CFG = {
 
 // ─── State ────────────────────────────────────────────────────────────────
 const S = {
-  indoorsUrl: null,
-  relocUrl:   null,
-  facilities: [],
-  levels:     {},  // facId -> [{id,name,order}]
-  rooms:      {},  // lvlId -> [{unitId,name,useType}]
-  from:       [],  // selected from rooms
-  to:         [],  // selected to rooms
-  movements:  [],  // [{from,to,occupants}]
+  facilitiesUrl: null,
+  levelsUrl:     null,
+  unitsUrl:      null,
+  relocUrl:      null,
+  facilities: [], levels: {}, rooms: {},
+  from:       [], to:     [], movements: [],
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -828,7 +826,7 @@ async function doLogin() {
 
 function doSignOut() {
   esriId.destroyCredentials();
-  Object.assign(S, { indoorsUrl:null, relocUrl:null, facilities:[], levels:{}, rooms:{}, from:[], to:[], movements:[] });
+  Object.assign(S, { facilitiesUrl:null, levelsUrl:null, unitsUrl:null, relocUrl:null, facilities:[], levels:{}, rooms:{}, from:[], to:[], movements:[] });
   $("loginUser").value = "";
   $("loginPass").value = "";
   showLogin("");
@@ -843,23 +841,21 @@ async function init() {
 async function loadApp() {
   setStatus('<span class="spinner spinner-dark"></span> Connecting to ArcGIS Online…', "inf");
   try {
-    const iItem = await req(`${CFG.portal}/sharing/rest/content/items/${CFG.indoors}`, {});
-    if (!iItem.url) throw new Error("Could not retrieve Indoors service URL");
-    S.indoorsUrl = iItem.url;
-
-    const rItem = await req(`${CFG.portal}/sharing/rest/content/items/${CFG.reloc}`, {});
-    if (!rItem.url) throw new Error("Could not retrieve Relocation service URL");
-    S.relocUrl = rItem.url;
-
+    // Hardcoded service URLs — no item lookup needed
+    S.facilitiesUrl = "https://services7.arcgis.com/e2jd7H2H5rwyzBMm/arcgis/rest/services/Facilities/FeatureServer/0";
+    S.levelsUrl     = "https://services7.arcgis.com/e2jd7H2H5rwyzBMm/arcgis/rest/services/Levels/FeatureServer/0";
+    S.unitsUrl      = "https://services7.arcgis.com/e2jd7H2H5rwyzBMm/arcgis/rest/services/Units_vw1/FeatureServer/0";
+    S.relocUrl      = "https://services7.arcgis.com/e2jd7H2H5rwyzBMm/arcgis/rest/services/TTU_RelocationMap/FeatureServer";
     await loadFacilities();
   } catch(e) {
     setStatus(`❌ Could not load services: ${e.message}`, "err");
+    console.error(e);
   }
 }
 
 async function loadFacilities() {
   try {
-    const d = await req(`${S.indoorsUrl}/${CFG.lFac}/query`, {
+    const d = await req(`${S.facilitiesUrl}/query`, {
       where: "1=1", outFields: "FACILITY_ID,NAME", returnGeometry: false
     });
     S.facilities = d.features
@@ -893,7 +889,7 @@ async function onBuildingChange(side) {
   fSel.innerHTML = '<option value="">Loading…</option>';
   try {
     if (!S.levels[fid]) {
-      const d = await req(`${S.indoorsUrl}/${CFG.lLvl}/query`, {
+      const d = await req(`${S.levelsUrl}/query`, {
         where: `FACILITY_ID = '${fid}'`, outFields: "LEVEL_ID,NAME,VERTICAL_ORDER",
         returnGeometry: false, orderByFields: "VERTICAL_ORDER"
       });
@@ -924,7 +920,7 @@ async function loadRooms(side) {
   listEl.innerHTML = '<div class="loading">Loading rooms…</div>';
   try {
     if (!S.rooms[lvlId]) {
-      const d = await req(`${S.indoorsUrl}/${CFG.lUnit}/query`, {
+      const d = await req(`${S.unitsUrl}/query`, {
         where: `LEVEL_ID = '${lvlId}'`, outFields: "UNIT_ID,NAME,USE_TYPE",
         returnGeometry: false, orderByFields: "NAME"
       });
