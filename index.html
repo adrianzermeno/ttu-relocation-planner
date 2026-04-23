@@ -504,13 +504,25 @@ body {
     <div class="login-logo">🏛</div>
     <h1>Relocation Planner</h1>
     <p class="sub">Sign in with your ArcGIS Online account<br>to access TTU building and room data.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;text-align:left">
+      <div class="field">
+        <label>AGOL Username</label>
+        <input type="text" id="loginUser" placeholder="your.username" autocomplete="username"
+          onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+    </div>
     <div class="login-err" id="loginErr"></div>
     <button class="btn btn-primary btn-lg" id="loginBtn" onclick="doLogin()" style="width:100%;justify-content:center">
-      Sign In with ArcGIS
+      Sign In
     </button>
     <p class="login-note">
       Powered by ArcGIS Online · TTU Operations<br>
-      Your session is handled securely by Esri
+      Your credentials are used only to generate a secure temporary token
     </p>
   </div>
 </div>
@@ -698,30 +710,21 @@ body {
 
 <script>
 require([
-  "esri/identity/OAuthInfo",
   "esri/identity/IdentityManager",
   "esri/request"
-], function(OAuthInfo, esriId, esriRequest) {
+], function(esriId, esriRequest) {
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────
 const CFG = {
-  portal:    "https://www.arcgis.com",
-  appId:     "X3IFUf6VCkpvjAiu",
+  portal:    "https://ttuoperations.maps.arcgis.com",
   indoors:   "be3195ff57944e6a891d18c2368f43f3",
   reloc:     "1e604fdd098e4d1782b203d5ea7ecfc3",
   lFac:  2,  // Facilities layer index
   lLvl:  1,  // Levels layer index
-  lUnit: 3,  // Units layer index  ← verify this
+  lUnit: 3,  // Units layer index
   lProj: 20, // Relocation_Projects
   lMov:  22, // Room_Movements
 };
-
-// ─── Register OAuth (popup:true — clean popup login) ──────────────────────
-esriId.registerOAuthInfos([new OAuthInfo({
-  appId:     CFG.appId,
-  popup:     true,
-  portalUrl: CFG.portal
-})]);
 
 // ─── State ────────────────────────────────────────────────────────────────
 const S = {
@@ -773,19 +776,41 @@ async function post(url, fd) {
   return r.data;
 }
 
-// ─── AUTH ─────────────────────────────────────────────────────────────────
+// ─── AUTH — direct generateToken (non-SSO AGOL org) ──────────────────────
 async function doLogin() {
-  const btn = $("loginBtn"), err = $("loginErr");
+  const btn  = $("loginBtn"), err = $("loginErr");
+  const user = $("loginUser").value.trim();
+  const pass = $("loginPass").value;
+  if (!user || !pass) { err.textContent = "Please enter your username and password."; return; }
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Opening sign-in…';
+  btn.innerHTML = '<span class="spinner"></span> Signing in…';
   err.textContent = "";
   try {
-    const cred = await esriId.getCredential(`${CFG.portal}/sharing`);
-    showApp(cred.userId);
+    // POST directly to the org's generateToken endpoint
+    const fd = new FormData();
+    fd.append("username",   user);
+    fd.append("password",   pass);
+    fd.append("referer",    CFG.portal);
+    fd.append("expiration", "120");
+    fd.append("f",          "json");
+    const res  = await fetch(`${CFG.portal}/sharing/rest/generateToken`, { method: "POST", body: fd });
+    const data = await res.json();
+    if (data.error)  throw new Error(data.error.message || "Login failed");
+    if (!data.token) throw new Error("Invalid username or password");
+
+    // Register token with SDK so all esriRequests auto-attach it
+    esriId.registerToken({
+      server:  `${CFG.portal}/sharing/rest`,
+      userId:  user,
+      token:   data.token,
+      expires: data.expires,
+      ssl:     true
+    });
+
+    showApp(user);
     await loadApp();
   } catch(e) {
-    err.textContent = "Sign-in failed or cancelled. Please try again.";
-  } finally {
+    err.textContent = `❌ ${e.message || "Sign-in failed. Please try again."}`;
     btn.disabled = false;
     btn.innerHTML = "Sign In with ArcGIS";
   }
@@ -794,17 +819,14 @@ async function doLogin() {
 function doSignOut() {
   esriId.destroyCredentials();
   Object.assign(S, { indoorsUrl:null, relocUrl:null, facilities:[], levels:{}, rooms:{}, from:[], to:[], movements:[] });
+  $("loginUser").value = "";
+  $("loginPass").value = "";
   showLogin("");
 }
 
 async function init() {
-  try {
-    const cred = await esriId.checkSignInStatus(`${CFG.portal}/sharing`);
-    showApp(cred.userId);
-    await loadApp();
-  } catch(e) {
-    showLogin();
-  }
+  // No auto-login check needed — always show login screen
+  showLogin();
 }
 
 // ─── LOAD SERVICE URLS + BUILDINGS ───────────────────────────────────────
