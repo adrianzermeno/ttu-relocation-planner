@@ -764,13 +764,15 @@ function showApp(user) {
 }
 
 // ─── Request helpers — plain fetch with token, bypasses SDK URL rewriting ─
-let _token = null; // store token for manual attachment
+let _token = null;
+let _servicesToken = null;
 
 async function req(url, params) {
   try {
     const p = new URLSearchParams({ f: "json" });
-    if (_token) p.append("token", _token);
-    // Only append defined params
+    // Use services token for services7 domain, portal token for everything else
+    const token = url.includes("services7.arcgis.com") ? (_servicesToken || _token) : _token;
+    if (token) p.append("token", token);
     Object.entries(params || {}).forEach(([k,v]) => { if (v !== undefined && v !== null) p.append(k, v); });
     const fullUrl = `${url}?${p.toString()}`;
     const res  = await fetch(fullUrl);
@@ -783,7 +785,8 @@ async function req(url, params) {
   }
 }
 async function post(url, fd) {
-  if (_token) fd.append("token", _token);
+  const token = url.includes("services7.arcgis.com") ? (_servicesToken || _token) : _token;
+  if (token) fd.append("token", token);
   const res  = await fetch(url, { method: "POST", body: fd });
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
@@ -804,7 +807,7 @@ async function doLogin() {
     const fd = new FormData();
     fd.append("username",   user);
     fd.append("password",   pass);
-    fd.append("referer",    "https://adrianzermeno.github.io");
+    fd.append("referer",    window.location.origin);
     fd.append("expiration", "120");
     fd.append("f",          "json");
     const res  = await fetch(`${CFG.portal}/sharing/rest/generateToken`, { method: "POST", body: fd });
@@ -812,7 +815,22 @@ async function doLogin() {
     if (data.error)  throw new Error(data.error.message || "Login failed");
     if (!data.token) throw new Error("Invalid username or password");
 
-    _token = data.token; // store for all subsequent requests
+    _token = data.token;
+    console.log("Token acquired:", _token.substring(0, 20) + "...");
+
+    // Also get a token specifically for the services domain
+    const fd2 = new FormData();
+    fd2.append("username",   user);
+    fd2.append("password",   pass);
+    fd2.append("referer",    "https://services7.arcgis.com");
+    fd2.append("expiration", "120");
+    fd2.append("f",          "json");
+    const res2  = await fetch(`${CFG.portal}/sharing/rest/generateToken`, { method: "POST", body: fd2 });
+    const data2 = await res2.json();
+    if (data2.token) {
+      _servicesToken = data2.token;
+      console.log("Services token acquired:", _servicesToken.substring(0, 20) + "...");
+    }
 
     // Register token with SDK so all esriRequests auto-attach it
     esriId.registerToken({
