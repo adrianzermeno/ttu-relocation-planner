@@ -798,7 +798,7 @@ async function doLogin() {
     const fd = new FormData();
     fd.append("username",   user);
     fd.append("password",   pass);
-    fd.append("referer",    CFG.portal);
+    fd.append("referer",    "https://adrianzermeno.github.io");
     fd.append("expiration", "120");
     fd.append("f",          "json");
     const res  = await fetch(`${CFG.portal}/sharing/rest/generateToken`, { method: "POST", body: fd });
